@@ -2,6 +2,8 @@
 
 ## Touch screen support
 
+Fixes the annoying zooming in ComfyUI
+
 https://github.com/Comfy-Org/ComfyUI_frontend/pull/1519
 
 - Two-finger scrolling (vertical and horizontal) to pan the canvas
