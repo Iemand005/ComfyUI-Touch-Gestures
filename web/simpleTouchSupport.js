@@ -2,6 +2,7 @@
 /** @type {any} */
 const { self } = window
 
+// @ts-expect-error
 /** @type {import("../../../web/types/litegraph")} */
 const { LGraphCanvas, LiteGraph } = self
 
@@ -15,6 +16,7 @@ const { app } = ComfyUI_module
  */
 let touchZooming
 let touchCount = 0
+let menuTouchDown = false
 
 app.registerExtension({
   name: 'Comfy.SimpleTouchSupportFox',
@@ -137,6 +139,37 @@ app.registerExtension({
     app.canvasEl.parentElement.addEventListener('touchend', onTouchEnd)
     app.canvasEl.parentElement.addEventListener('touchmove', onTouchMove, true)
     app.canvasEl.addEventListener('touchmove', onTouchMove, true)
+
+    // Touch support for legacy menu
+    const comfyMenu = document.getElementsByClassName("comfy-menu")[0];
+    const draghandle = document.getElementsByClassName("drag-handle")[0];
+    // @ts-expect-error
+    comfyMenu.style.userSelect = "none"
+    comfyMenu.addEventListener('touchstart', e => {
+      menuTouchDown = true
+      draghandle.dispatchEvent(new MouseEvent('mousedown', {
+        clientX: e.touches[0].clientX,
+        clientY: e.touches[0].clientY
+      }))
+    })
+
+    comfyMenu.addEventListener('touchmove', e => {
+      
+      if (menuTouchDown) {
+        e.preventDefault()
+        document.dispatchEvent(new MouseEvent('mousemove', {
+          clientX: e.touches[0].clientX,
+          clientY: e.touches[0].clientY
+        }))
+      }
+    })
+
+    comfyMenu.addEventListener('touchend', e => {
+      if (e.touches?.length === 0) {
+        document.dispatchEvent(new MouseEvent('mouseup'))
+        menuTouchDown = false
+      }
+    })
   }
 })
 
