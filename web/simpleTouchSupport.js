@@ -3,7 +3,7 @@
 const { self } = window
 
 /** @type {import("../../../web/types/litegraph")} */
-const { LGraphCanvas } = self
+const { LGraphCanvas, LiteGraph } = self
 
 // @ts-ignore
 import * as ComfyUI_module from "../../../scripts/app.js"
@@ -13,10 +13,11 @@ const { app } = ComfyUI_module
 /**
  * Smooth zooming for touchscreen
  */
-let touchZooming;
-let touchCount = 0;
+let touchZooming
+let touchCount = 0
+
 app.registerExtension({
-  name: "Comfy.SimpleTouchSupportFox",
+  name: 'Comfy.SimpleTouchSupportFox',
   setup() {
     let touchDist
     let touchTime
@@ -36,9 +37,81 @@ app.registerExtension({
       }
     }
 
-    app.canvasEl.addEventListener(
-      'touchstart',
-      (e) => {
+    function onTouchMove(e) {
+      touchTime = null
+      if (e.touches?.length === 2 && lastTouch && !e.ctrlKey && !e.shiftKey) {
+        if (e.cancelable) e.preventDefault() // Prevent browser from zooming when two textareas are touched
+        app.canvas.pointer_is_down = false
+        touchZooming = true
+
+        LiteGraph.closeAllContextMenus(window)
+        app.canvas.search_box?.close()
+        const newTouchDist = getMultiTouchPos(e)
+
+        const center = getMultiTouchCenter(e)
+
+        let scale = (lastScale * newTouchDist) / touchDist
+
+        const newX = (center.clientX - lastTouch.clientX) / scale
+        const newY = (center.clientY - lastTouch.clientY) / scale
+
+        // Code from LiteGraph
+        if (scale < app.canvas.ds.min_scale) {
+          scale = app.canvas.ds.min_scale
+        } else if (scale > app.canvas.ds.max_scale) {
+          scale = app.canvas.ds.max_scale
+        }
+
+        const oldScale = app.canvas.ds.scale
+
+        app.canvas.ds.scale = scale
+
+        // Code from LiteGraph
+        if (Math.abs(app.canvas.ds.scale - 1) < 0.01) {
+          app.canvas.ds.scale = 1
+        }
+
+        const newScale = app.canvas.ds.scale
+
+        const convertScaleToOffset = (scale) => [
+          center.clientX / scale - app.canvas.ds.offset[0],
+          center.clientY / scale - app.canvas.ds.offset[1]
+        ]
+        var oldCenter = convertScaleToOffset(oldScale)
+        var newCenter = convertScaleToOffset(newScale)
+
+        app.canvas.ds.offset[0] += newX + newCenter[0] - oldCenter[0]
+        app.canvas.ds.offset[1] += newY + newCenter[1] - oldCenter[1]
+
+        lastTouch.clientX = center.clientX
+        lastTouch.clientY = center.clientY
+
+        app.canvas.setDirty(true, true)
+      }
+    }
+
+    function onTouchEnd(e) {
+      touchCount--
+
+      if (e.touches?.length !== 1) touchZooming = false
+      if (touchTime && !e.touches?.length) {
+        if (new Date().getTime() - touchTime > 600) {
+          if (e.target === app.canvasEl) {
+            app.canvasEl.dispatchEvent(
+              new PointerEvent('pointerdown', {
+                button: 2,
+                clientX: e.changedTouches[0].clientX,
+                clientY: e.changedTouches[0].clientY
+              })
+            )
+            e.preventDefault()
+          }
+        }
+        touchTime = null
+      }
+    }
+
+    app.canvasEl.parentElement.addEventListener('touchstart', e => {
         touchCount++
         lastTouch = null
         lastScale = null
@@ -61,93 +134,25 @@ app.registerExtension({
       true
     )
 
-    app.canvasEl.addEventListener('touchend', (e) => {
-      touchCount = e.touches?.length ?? touchCount - 1
-
-      if (e.touches?.length !== 1) touchZooming = false
-      if (touchTime && !e.touches?.length) {
-        if (new Date().getTime() - touchTime > 600) {
-          try {
-            // hack to get litegraph to use this event
-            e.constructor = CustomEvent
-          } catch (error) { }
-          e.clientX = lastTouch.clientX
-          e.clientY = lastTouch.clientY
-
-          app.canvas.pointer_is_down = true
-          app.canvas._mousedown_callback(e)
-        }
-        touchTime = null
-      }
-    })
-
-    app.canvasEl.addEventListener(
-      'touchmove',
-      (e) => {
-        touchTime = null
-        if (e.touches?.length === 2) {
-          app.canvas.pointer_is_down = false
-          touchZooming = true
-          // @ts-expect-error
-          LiteGraph.closeAllContextMenus()
-          app.canvas.search_box?.close()
-          const newTouchDist = getMultiTouchPos(e)
-
-          const center = getMultiTouchCenter(e)
-
-          let scaleDiff = app.canvas.ds.scale
-          const oldScale = app.canvas.ds.scale
-
-          scaleDiff = lastScale * newTouchDist / touchDist
-
-          const newX = (center.clientX - lastTouch.clientX) / scaleDiff
-          const newY = (center.clientY - lastTouch.clientY) / scaleDiff
-
-          if (scaleDiff < app.canvas.ds.min_scale)
-            scaleDiff = app.canvas.ds.min_scale
-          else if (scaleDiff > app.canvas.ds.max_scale)
-            scaleDiff = app.canvas.ds.max_scale
-
-          app.canvas.ds.scale = scaleDiff
-
-          // Code from LiteGraph
-          if (Math.abs(app.canvas.ds.scale - 1) < 0.01) {
-            app.canvas.ds.scale = 1
-          }
-
-          const newScale = app.canvas.ds.scale
-
-          const convertScaleToOffset = scale => [
-            center.clientX / scale - app.canvas.ds.offset[0],
-            center.clientY / scale - app.canvas.ds.offset[1]
-          ]
-          var oldCenter = convertScaleToOffset(oldScale)
-          var newCenter = convertScaleToOffset(newScale)
-
-          app.canvas.ds.offset[0] += newX + newCenter[0] - oldCenter[0]
-          app.canvas.ds.offset[1] += newY + newCenter[1] - oldCenter[1]
-
-          lastTouch.clientX = center.clientX
-          lastTouch.clientY = center.clientY
-
-          app.canvas.setDirty(true, true)
-        }
-      },
-      true
-    )
+    app.canvasEl.parentElement.addEventListener('touchend', onTouchEnd)
+    app.canvasEl.parentElement.addEventListener('touchmove', onTouchMove, true)
+    app.canvasEl.addEventListener('touchmove', onTouchMove, true)
   }
-});
-const processMouseDown = LGraphCanvas.prototype.processMouseDown;
+})
+
+const processMouseDown = LGraphCanvas.prototype.processMouseDown
 LGraphCanvas.prototype.processMouseDown = function (e) {
   if (touchZooming || touchCount) {
-    return;
+    return
   }
-  return processMouseDown.apply(this, arguments);
-};
-const processMouseMove = LGraphCanvas.prototype.processMouseMove;
+  app.canvas.pointer_is_down = false // Prevent context menu from opening on second tap
+  return processMouseDown.apply(this, arguments)
+}
+
+const processMouseMove = LGraphCanvas.prototype.processMouseMove
 LGraphCanvas.prototype.processMouseMove = function (e) {
   if (touchZooming || touchCount > 1) {
-    return;
+    return
   }
-  return processMouseMove.apply(this, arguments);
-};
+  return processMouseMove.apply(this, arguments)
+}
