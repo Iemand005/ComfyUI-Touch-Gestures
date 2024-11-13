@@ -23,7 +23,7 @@ app.registerExtension({
     let touchTime
     let lastTouch
     let lastScale
-    function getMultiTouchPos(e) {
+    function getMultiTouchDist(e) {
       return Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -46,7 +46,7 @@ app.registerExtension({
 
         LiteGraph.closeAllContextMenus(window)
         app.canvas.search_box?.close()
-        const newTouchDist = getMultiTouchPos(e)
+        const newTouchDist = getMultiTouchDist(e)
 
         const center = getMultiTouchCenter(e)
 
@@ -126,7 +126,7 @@ app.registerExtension({
             lastScale = app.canvas.ds.scale
             lastTouch = getMultiTouchCenter(e)
 
-            touchDist = getMultiTouchPos(e)
+            touchDist = getMultiTouchDist(e)
             app.canvas.pointer_is_down = false
           }
         }
