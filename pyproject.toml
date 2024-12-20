@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-touch-gestures"
+description = "Implements proper multitouch zooming and panning into ComfyUI to make it more usable on mobile devices."
+version = "1.0.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/Iemand005/ComfyUI-Touch-Gestures"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-Touch-Gestures"
+Icon = ""
