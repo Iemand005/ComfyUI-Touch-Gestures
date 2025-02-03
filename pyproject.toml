@@ -9,6 +9,6 @@ Repository = "https://github.com/Iemand005/ComfyUI-Touch-Gestures"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "@foxyz"
 DisplayName = "ComfyUI-Touch-Gestures"
 Icon = ""
